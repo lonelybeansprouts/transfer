@@ -1,0 +1,189 @@
+import numpy as np
+from keras.engine.saving import load_attributes_from_hdf5_group, preprocess_weights_for_loading
+from keras import backend as K
+
+try:
+    import h5py
+    HDF5_OBJECT_HEADER_LIMIT = 64512
+except ImportError:
+    h5py = None
+
+
+def load_cifar():
+    def unpickle(file):
+        import pickle
+        with open(file, 'rb') as fo:
+            dict = pickle.load(fo, encoding='bytes')
+        return dict
+    
+    #file = 'D:\\Users\\Desktop\\tenforflow\\Orthogonal_Matrix\\cifar-10-batches-py\\'
+    file = ''
+    train_batch_1=unpickle(file+'data_batch_1')
+    train_batch_2=unpickle(file+'data_batch_2')
+    train_batch_3=unpickle(file+'data_batch_3')
+    train_batch_4=unpickle(file+'data_batch_4')
+    train_batch_5=unpickle(file+'data_batch_5')
+    test_batch=unpickle(file+'test_batch')
+    
+    # for key in train_batch_1:
+    #     print(key,len(train_batch_1[b'data']))
+    
+    def convert(data):
+        if isinstance(data, bytes):  return data.decode('ascii')
+        if isinstance(data, dict):   return dict(map(convert, data.items()))
+        if isinstance(data, tuple):  return map(convert, data)
+        return data    
+    
+    train_batch_1=convert(train_batch_1)
+    train_batch_2=convert(train_batch_2)
+    train_batch_3=convert(train_batch_3)
+    train_batch_4=convert(train_batch_4)
+    train_batch_5=convert(train_batch_5)
+    test_batch=convert(test_batch)
+    
+    
+    train_Data=np.concatenate((train_batch_1['data'],train_batch_2['data'],train_batch_3['data'],train_batch_4['data'],train_batch_5['data']),axis=0).astype(np.float32)
+    train_Labels=np.concatenate((train_batch_1['labels'],train_batch_2['labels'],train_batch_3['labels'],train_batch_4['labels'],train_batch_5['labels']),axis=0).astype(np.float32)
+    test_data=np.array(test_batch['data']).astype(np.float32)
+    test_label=np.array(test_batch['labels']).astype(np.float32)
+    
+    
+    def label_format_changer(labels):
+        label_changed=np.zeros((labels.shape[0],10))    
+        for i in range(labels.shape[0]):
+               label_changed[i][int(labels[i])]=1.0
+        return label_changed   
+    
+    train_Labels=label_format_changer(train_Labels)
+    test_label=label_format_changer(test_label)
+    
+    train_Data = train_Data.reshape(50000,3,32,32).transpose(0,2,3,1)
+    test_data = test_data.reshape(10000,3,32,32).transpose(0,2,3,1)
+    
+    return [[train_Data,train_Labels],[test_data,test_label]]
+
+
+def load_weight_by_weight_name(model,filepath):
+
+    if h5py is None:
+        raise ImportError('`load_weights` requires h5py.')
+    with h5py.File(filepath, mode='r') as f:
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+            f = f['model_weights']
+        load_weights_from_hdf5_group_by_name(f, model.layers)
+
+
+
+def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
+                                         reshape=False):
+    """Implements name-based weight loading.
+
+    (instead of topological weight loading).
+
+    Layers that have no matching name are skipped.
+
+    # Arguments
+        f: A pointer to a HDF5 group.
+        layers: A list of target layers.
+        skip_mismatch: Boolean, whether to skip loading of layers
+            where there is a mismatch in the number of weights,
+            or a mismatch in the shape of the weights.
+        reshape: Reshape weights to fit the layer when the correct number
+            of values are present but the shape does not match.
+
+    # Raises
+        ValueError: in case of mismatch between provided layers
+            and weights file and skip_mismatch=False.
+    """
+    if 'keras_version' in f.attrs:
+        original_keras_version = f.attrs['keras_version'].decode('utf8')
+    else:
+        original_keras_version = '1'
+    if 'backend' in f.attrs:
+        original_backend = f.attrs['backend'].decode('utf8')
+    else:
+        original_backend = None
+
+    # New file format.
+    layer_names = load_attributes_from_hdf5_group(f, 'layer_names')
+
+    # Reverse index of layer name to list of layers with name.
+    index = {}
+
+    for layer in layers:
+        if layer.name:
+            index.setdefault(layer.name, []).append(layer)
+    
+    print(layer_names)
+    print(index.keys())
+
+    # We batch weight value assignments in a single backend call
+    # which provides a speedup in TensorFlow.
+    weight_value_tuples = []
+    for k, name in enumerate(layer_names):
+        print(name)
+        g = f[name]
+        weight_names = load_attributes_from_hdf5_group(g, 'weight_names')
+        weight_values = [np.asarray(g[weight_name]) for weight_name in weight_names]
+
+
+
+        for layer in index.get(name, []):
+            symbolic_weights = layer.weights
+
+            symbolic_weights_names = [w.name for w in symbolic_weights]
+
+            weight_values = preprocess_weights_for_loading(
+                layer,
+                weight_values,
+                original_keras_version,
+                original_backend,
+                reshape=reshape)
+            # if len(weight_values) != len(symbolic_weights):
+            #     if skip_mismatch:
+            #         warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
+            #                       ' due to mismatch in number of weights' +
+            #                       ' ({} vs {}).'.format(len(symbolic_weights), len(weight_values)))
+            #         continue
+            #     else:
+            #         raise ValueError('Layer #' + str(k) +
+            #                          ' (named "' + layer.name +
+            #                          '") expects ' +
+            #                          str(len(symbolic_weights)) +
+            #                          ' weight(s), but the saved weights' +
+            #                          ' have ' + str(len(weight_values)) +
+            #                          ' element(s).')
+            # Set values.
+            weight_names = [name.split('/')[-1] for name in weight_names]               #delete prefix of name
+            symbolic_weights_names = [name.split('/')[-1] for name in symbolic_weights_names]
+            print(weight_names)
+            print(symbolic_weights_names)
+
+            for i in range(len(weight_values)):
+
+                if weight_names[i] in symbolic_weights_names:
+                    ii = symbolic_weights_names.index(weight_names[i])
+
+                    if K.int_shape(symbolic_weights[ii]) != weight_values[i].shape:
+                        if skip_mismatch:
+                            warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
+                                        ' due to mismatch in shape' +
+                                        ' ({} vs {}).'.format(
+                                            symbolic_weights[ii].shape,
+                                            weight_values[i].shape))
+                            continue
+                        else:
+                            raise ValueError('Layer #' + str(k) +
+                                            ' (named "' + layer.name +
+                                            '"), weight ' +
+                                            str(symbolic_weights[ii]) +
+                                            ' has shape {}'.format(K.int_shape(symbolic_weights[ii])) +
+                                            ', but the saved weight has shape ' +
+                                            str(weight_values[i].shape) + '.')
+                    else:
+                        weight_value_tuples.append((symbolic_weights[ii],
+                                                    weight_values[i]))
+
+    K.batch_set_value(weight_value_tuples)
+
+

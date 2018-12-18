@@ -1,0 +1,235 @@
+import keras
+import numpy as np
+from keras.datasets import cifar10
+from keras.preprocessing.image import ImageDataGenerator
+from keras.layers.normalization import BatchNormalization
+from keras.layers import Dense, Input, add, Activation, Flatten, AveragePooling2D, MaxPooling2D, Dropout, Lambda
+from keras.callbacks import LearningRateScheduler, TensorBoard
+from keras.regularizers import l2
+from keras import optimizers
+from keras.models import Model,Sequential
+from utills import load_cifar
+from keras.initializers import he_normal
+from keras.layers import Conv2D
+from keras import backend as K 
+#from operations import Convolution2D as Conv2D
+import numpy
+from dataloader.mnist_dataloader import read_mnist
+
+
+
+
+
+
+
+DEPTH              = 28
+WIDE               = 10
+IN_FILTERS         = 16
+
+CLASS_NUM          = 10
+IMG_ROWS, IMG_COLS = 32, 32
+IMG_CHANNELS       = 1
+
+BATCH_SIZE         = 128
+EPOCHS             = 200
+ITERATIONS         = 50000 // BATCH_SIZE + 1
+weight_decay       =  0.0005
+LOG_FILE_PATH      = './w_resnet/'
+dropout            =0.5
+
+
+from keras import backend as K
+
+
+
+
+# build model
+model = Sequential()
+# Block 1
+model.add(Conv2D(64, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block1_conv1' , input_shape=(IMG_ROWS,IMG_COLS,IMG_CHANNELS)))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(64, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block1_conv2'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool'))
+
+# Block 2
+model.add(Conv2D(128, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block2_conv1'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(128, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block2_conv2'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool'))
+
+# Block 3
+model.add(Conv2D(256, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block3_conv1'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(256, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block3_conv2'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(256, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block3_conv3'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(256, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block3_conv4'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool'))
+
+# Block 4
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block4_conv1'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block4_conv2'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block4_conv3'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block4_conv4'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool'))
+
+# Block 5
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block5_conv1'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block5_conv2'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block5_conv3'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(512, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='block5_conv4'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool'))
+
+# model modification for cifar-10
+model.add(Flatten(name='flatten'))
+model.add(Dense(4096, use_bias = True, kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='fc_cifa10'))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Dropout(dropout))
+model.add(Dense(4096, kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='fc2'))  
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Dropout(dropout))      
+model.add(Dense(10, kernel_regularizer=keras.regularizers.l2(weight_decay), kernel_initializer=he_normal(), name='predictions_cifa10'))        
+model.add(BatchNormalization())
+model.add(Activation('softmax'))
+
+#
+for layer in model.layers:
+    layer.trainable = False
+
+
+
+
+#
+conv_layers = []
+for layer in model.layers:
+    if "conv" in layer.name:
+        conv_layers.append(layer)
+
+
+conv1_1,conv1_2, conv2_1,conv2_2, conv3_1,conv3_2,conv3_3,conv3_4, conv4_1,conv4_2,conv4_3,conv4_4, \
+                                                 conv5_1, conv5_2, conv5_3, conv5_4 = conv_layers
+
+conv_down_layers = []
+for i in range(len(conv_layers)):
+    conv_down_layer = Conv2D(21, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv_layers[i].output)
+    conv_down_layers.append(conv_down_layer)
+
+
+conv1_1_down,conv1_2_down, conv2_1_down,conv2_2_down, conv3_1_down,conv3_2_down,conv3_3_down,conv3_4_down, \
+        conv4_1_down,conv4_2_down,conv4_3_down,conv4_4_down,conv5_1_down, conv5_2_down, conv5_3_down, conv5_4_down = conv_down_layers
+
+
+
+block1_out = Conv2D(1, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv1_1_down + conv1_2_down)
+block2_out = Conv2D(1, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv2_1_down + conv2_2_down)
+block3_out = Conv2D(1, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv3_1_down + conv3_2_down + conv3_3_down + conv3_4_down)
+block4_out = Conv2D(1, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv4_1_down + conv4_2_down + conv4_3_down + conv4_4_down)
+block5_out = Conv2D(1, (1, 1), padding='same', kernel_regularizer=keras.regularizers.l2(weight_decay), \
+                             kernel_initializer=he_normal())(conv5_1_down + conv5_2_down + conv5_3_down + conv5_4_down)
+
+source_features = [block1_out, block2_out, block3_out, block4_out, block5_out]
+
+
+source_features = None
+
+
+#from operations import Convolution2D_pad 
+from operation_1 import Convolution2D_pad
+
+out1 = Convolution2D_pad(32, (5, 5), padding='same',  \
+                        kernel_initializer=he_normal(), activation = 'relu', source_features=source_features)(model.layers[0].input)
+out2 = MaxPooling2D((2, 2), strides=(2, 2))(out1)
+out3 = Convolution2D_pad(64, (5, 5), padding='same',  \
+                             kernel_initializer=he_normal(), activation = 'relu', source_features=source_features)(out2)
+out4 = MaxPooling2D((2, 2), strides=(2, 2))(out3)
+out5 = Flatten()(out4)
+out6 = Dense(120, activation = 'relu', kernel_initializer='he_normal')(out5)
+out7 = Dense(84, activation = 'relu', kernel_initializer='he_normal')(out6)
+dropout = Dropout(0.5)(out7)
+out8 = Dense(10, activation = 'softmax', kernel_initializer='he_normal')(dropout)
+lenet = Model(model.layers[0].input,out8)
+sgd = optimizers.SGD(lr=.1, momentum=0.9, nesterov=True)
+lenet.compile(loss='sparse_categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+
+
+def scheduler(epoch):
+    if epoch < 100:
+        return 0.01
+    if epoch < 150:
+        return 0.005
+    return 0.001
+
+if __name__ == '__main__':
+
+    # load data
+
+    dataset = numpy.load('../../data/usps/usps_15.npz')
+    train_set_x = dataset['train_set_x']
+    train_set_y = dataset['train_set_y']
+    test_set_x = dataset['test_set_x']
+    test_set_y = dataset['test_set_y']
+    print(train_set_x.shape)
+    print(train_set_y.shape)
+    print(test_set_x.shape)
+    print(test_set_y.shape)
+
+    train_set_x = train_set_x.reshape(-1,32,32,1)
+    test_set_x = test_set_x.reshape(-1,32,32,1)
+
+
+    model.load_weights("/home/xddz/dejian.zhong/data/output/model_vgg19_minist/model_at_epoch_190.h5")
+    print("loading weight finished")
+
+
+
+    print(lenet.summary())
+
+    # set callback
+    tb_cb = TensorBoard(log_dir='./lenet', histogram_freq=0)
+    change_lr = LearningRateScheduler(scheduler)
+    cbks = [change_lr,tb_cb]
+
+    # start train
+    lenet.fit(train_set_x, train_set_y,
+              batch_size=20,
+              epochs=200,
+              callbacks=cbks,
+              validation_data=(test_set_x, test_set_y),
+              shuffle=True)
+
+
