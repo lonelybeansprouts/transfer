@@ -23,7 +23,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CUDA = True if torch.cuda.is_available() else False
 LEARNING_RATE = 0.001
 BATCH_SIZE_SRC = 64
-BATCH_SIZE_TAR = 1
+BATCH_SIZE_TAR = 64
 L2_DECAY = 5e-4
 DROPOUT = 0.5
 N_EPOCH = 200
@@ -46,11 +46,8 @@ def test(model, data_tar):
             loss = criterion(output, target)
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).sum()
-            print(output.data)
             print(pred)
             print(target.data.view_as(pred))
-            print("xxxxxxxxxxxxxxxxxxxxx")
-
             total_loss += loss.item()
         acc_test = float(correct) * 100. / (n_batch * BATCH_SIZE_SRC)
         tqdm.write('\ttest loss: {:.6f},\tcorrect: [{}/{}],\ttest accuracy: {:.4f}%'.format(
