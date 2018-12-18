@@ -8,6 +8,7 @@ import ResNet as resnet
 import os
 import collections
 import AlexNet
+import DenseNet
 from torch.utils import model_zoo
 import data_loader
 import math
@@ -87,6 +88,8 @@ def load_model(name='alexnet'):
         model = resnet.myresnet(pretrained=True, num_classes=31)
         # torch.nn.init.xavier_uniform_(model.nfc.weight.data)
         # torch.nn.init.constant_(model.nfc.bias.data, 0.01)
+    elif name == 'densenet':
+        model = DenseNet.mydensenet(pretrained=True, num_classes=31)
     return model
 
 
@@ -114,7 +117,8 @@ if __name__ == '__main__':
     root_dir = '../../../../data/Original_images/'
     src, tar = 'amazon/images', 'webcam/images'
     #model_name = 'alexnet'
-    model_name = 'resnet'
+    # model_name = 'resnet'
+    model_name = 'densenet'
     data_src, data_tar = data_loader.load_training(root_dir, src, BATCH_SIZE_SRC), \
                          data_loader.load_testing(root_dir, tar, BATCH_SIZE_TAR)
     print('Source:{}, target:{}'.format(src, tar))
