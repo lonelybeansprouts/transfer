@@ -8,6 +8,7 @@ import ResNet as resnet
 import os
 import collections
 import AlexNet
+import DenseNet
 from torch.utils import model_zoo
 import data_loader
 import math
@@ -17,13 +18,13 @@ from tqdm import tqdm
 import numpy as np
 from torch.nn import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CUDA = True if torch.cuda.is_available() else False
 LEARNING_RATE = 0.001
-BATCH_SIZE_SRC = 64
-BATCH_SIZE_TAR = 64
+BATCH_SIZE_SRC = 32
+BATCH_SIZE_TAR = 32
 L2_DECAY = 5e-4
 DROPOUT = 0.5
 N_EPOCH = 200
@@ -87,6 +88,8 @@ def load_model(name='alexnet'):
         model = resnet.myresnet(pretrained=True, num_classes=31)
         # torch.nn.init.xavier_uniform_(model.nfc.weight.data)
         # torch.nn.init.constant_(model.nfc.bias.data, 0.01)
+    elif name == 'densenet':
+        model = DenseNet.mydensenet(pretrained=True, num_classes=31)
     return model
 
 
@@ -106,6 +109,11 @@ def get_optimizer(model_name='alexnet', learning_rate=0.0001):
             {'params': model.features.parameters()},
             {'params': model.nfc.parameters(), 'lr': learning_rate * 10}
         ], lr=learning_rate, momentum=MOMENTUM, weight_decay=L2_DECAY)
+    elif model_name == 'densenet':
+        optimizer = optim.SGD(params=[
+            {'params': model.features.parameters()},
+            {'params': model.nfc.parameters(), 'lr': learning_rate * 10}
+         ], lr=learning_rate, momentum=MOMENTUM, weight_decay=L2_DECAY)
     assert optimizer is not None
     return optimizer
 
@@ -113,8 +121,9 @@ if __name__ == '__main__':
     torch.manual_seed(10)
     root_dir = '../../../../data/Original_images/'
     src, tar = 'amazon/images', 'webcam/images'
-    model_name = 'alexnet'
-    #model_name = 'resnet'
+    #model_name = 'alexnet'
+    # model_name = 'resnet'
+    model_name = 'densenet'
     data_src, data_tar = data_loader.load_training(root_dir, src, BATCH_SIZE_SRC), \
                          data_loader.load_testing(root_dir, tar, BATCH_SIZE_TAR)
     print('Source:{}, target:{}'.format(src, tar))
@@ -127,6 +136,6 @@ if __name__ == '__main__':
         train(e, model, optimizer, data_src)
         test(e, model, data_tar)
         lrs = lr_decay(1e-4, N_EPOCH, e)
-    torch.save(model.state_dict(), 'params.pkl')
+    torch.save(model.state_dict(), 'output/params.pkl')
      
 

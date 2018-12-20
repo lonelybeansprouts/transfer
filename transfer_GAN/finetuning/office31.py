@@ -18,13 +18,13 @@ from tqdm import tqdm
 import numpy as np
 from torch.nn import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CUDA = True if torch.cuda.is_available() else False
 LEARNING_RATE = 0.001
-BATCH_SIZE_SRC = 64
-BATCH_SIZE_TAR = 64
+BATCH_SIZE_SRC = 48
+BATCH_SIZE_TAR = 48
 L2_DECAY = 5e-4
 DROPOUT = 0.5
 N_EPOCH = 200
@@ -109,6 +109,11 @@ def get_optimizer(model_name='alexnet', learning_rate=0.0001):
             {'params': model.features.parameters()},
             {'params': model.nfc.parameters(), 'lr': learning_rate * 10}
         ], lr=learning_rate, momentum=MOMENTUM, weight_decay=L2_DECAY)
+    elif model_name == 'densenet':
+        optimizer = optim.SGD(params=[
+            {'params': model.features.parameters()},
+            {'params': model.nfc.parameters(), 'lr': learning_rate * 10}
+         ], lr=learning_rate, momentum=MOMENTUM, weight_decay=L2_DECAY)
     assert optimizer is not None
     return optimizer
 
