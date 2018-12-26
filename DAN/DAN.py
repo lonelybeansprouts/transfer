@@ -71,26 +71,26 @@ def train(epoch, model):
     num_iter = len_source_loader
     for i in range(1, num_iter):
         data_source, label_source = iter_source.next()
-        data_target, _ = iter_target.next()
+        #data_target, _ = iter_target.next()
         if i % len_target_loader == 0:
             iter_target = iter(target_train_loader)
         if cuda:
             data_source, label_source = data_source.cuda(), label_source.cuda()
-            data_target = data_target.cuda()
+            #data_target = data_target.cuda()
         data_source, label_source = Variable(data_source), Variable(label_source)
-        data_target = Variable(data_target)
+        #data_target = Variable(data_target)
 
         optimizer.zero_grad()
-        label_source_pred, loss_mmd = model(data_source, data_target)
+        label_source_pred, loss_mmd = model(data_source, data_source)#data_target)
         loss_cls = F.nll_loss(F.log_softmax(label_source_pred, dim=1), label_source)
         gamma = 2 / (1 + math.exp(-10 * (epoch) / epochs)) - 1
-        loss = loss_cls + gamma * loss_mmd
+        loss = loss_cls #gamma * loss_mmd
         loss.backward()
         optimizer.step()
         if i % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tsoft_Loss: {:.6f}\tmmd_Loss: {:.6f}'.format(
-                epoch, i * len(data_source), len_source_dataset,
-                100. * i / len_source_loader, loss.data[0], loss_cls.data[0], loss_mmd.data[0]))
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tsoft_Loss: {:.6f}'.format(
+                epoch, i * len(data_source), len_source_dataset,  #\tmmd_Loss: {:.6f}
+                100. * i / len_source_loader, loss.data[0], loss_cls.data[0]) )#, loss_mmd.data[0]))
 
 def test(model):
     model.eval()

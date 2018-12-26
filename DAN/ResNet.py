@@ -157,11 +157,12 @@ class DANNet(nn.Module):
     def forward(self, source, target):
         loss = 0
         source = self.sharedNet(source)
+        '''
         if self.training == True:
             target = self.sharedNet(target)
             #loss += mmd.mmd_rbf_accelerate(source, target)
             loss += mmd.mmd_rbf_noaccelerate(source, target)
-
+        '''
         source = self.cls_fc(source)
         #target = self.cls_fc(target)
 
@@ -179,3 +180,68 @@ def resnet50(pretrained=False, **kwargs):
 
 
 
+class DANNet_Rec(nn.Module):
+
+    def __init__(self, num_classes=31):
+        super(DANNet_Rec, self).__init__()
+        self.sharedNet = resnet50(False)
+        self.cls_fc = nn.Linear(2048, num_classes)
+
+        self.rec_dense = nn.Sequential()
+        self.rec_dense.add_module('__fc5_', nn.Linear(in_features=2048, out_features=2048))
+        self.rec_dense.add_module('__relu5_', nn.ReLU(True))
+        self.rec_dense.add_module('__fc4_', nn.Linear(in_features=2048, out_features=512 * 7 * 7))
+        self.rec_dense.add_module('__relu4_', nn.ReLU(True))
+
+        self.rec_feat = nn.Sequential()
+        self.rec_feat.add_module('__conv3_', nn.Conv2d(in_channels=512, out_channels=256,
+                                                kernel_size=3, padding=1))
+        self.rec_feat.add_module('__relu3_', nn.ReLU(True))
+        self.rec_feat.add_module('__pool3_', nn.Upsample(scale_factor=4))
+        self.rec_feat.add_module('__conv2_', nn.Conv2d(in_channels=256, out_channels=128,
+                                                     kernel_size=3, padding=1))
+        self.rec_feat.add_module('__relu2_', nn.ReLU(True))
+        self.rec_feat.add_module('__pool2_', nn.Upsample(scale_factor=2))
+        self.rec_feat.add_module('__conv1_', nn.Conv2d(in_channels=128, out_channels=64,
+                                                     kernel_size=3, padding=1))
+        self.rec_feat.add_module('__relu1_', nn.ReLU(True))
+        self.rec_feat.add_module('__pool1_', nn.Upsample(scale_factor=2))
+        self.rec_feat.add_module('__conv0_', nn.Conv2d(in_channels=64, out_channels=32,
+                                                          kernel_size=3, padding=1))
+        self.rec_feat.add_module('__relu0_', nn.ReLU(True))
+        self.rec_feat.add_module('__pool0_', nn.Upsample(scale_factor=2))
+        self.rec_feat.add_module('__conv_last_', nn.Conv2d(in_channels=32, out_channels=3,
+                                                                  kernel_size=3, padding=1))
+
+    def forward(self, source, target):
+        loss = 0
+        img_rec_s = 0
+        img_rec_t = 0
+        source = self.sharedNet(source)
+        if self.training == True:
+            target = self.sharedNet(target)
+            #loss += mmd.mmd_rbf_accelerate(source, target)
+            loss += mmd.mmd_rbf_noaccelerate(source, target)
+            
+            feat_encode = self.rec_dense(source)
+            feat_encode = feat_encode.view(-1, 512, 7, 7)
+            img_rec_s = self.rec_feat(feat_encode)
+            
+            feat_encode = self.rec_dense(target)
+            feat_encode = feat_encode.view(-1, 512, 7, 7)
+            img_rec_t = self.rec_feat(feat_encode)
+        
+        source = self.cls_fc(source)
+        #target = self.cls_fc(target)
+
+        return source, loss, img_rec_s, img_rec_t
+    
+'''
+a = np.ones([10,3,224,224])
+a = torch.Tensor(a)
+model = DANNet_Rec(31)
+model.train()
+a,b,c = model(a,a)
+
+print(c.shape)
+'''
