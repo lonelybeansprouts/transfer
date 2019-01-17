@@ -2,6 +2,8 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 import torch
+import torch.nn.init as init
+
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -207,8 +209,17 @@ def resnet152(pretrained=False, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
 
-
+def _weights_init(m):
+    classname = m.__class__.__name__
+    print(classname)
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        init.kaiming_normal(m.weight)
 class myresnet(nn.Module):
+    def _weights_init(m):
+        classname = m.__class__.__name__
+        print(classname)
+        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+            init.kaiming_normal(m.weight)
     def __init__(self, pretrained=True, num_classes=1000):
         super(myresnet,self).__init__()
         model_resnet = resnet50(pretrained=pretrained)
@@ -225,6 +236,8 @@ class myresnet(nn.Module):
         )
         #self.nfc = nn.Linear(model_resnet.in_feature,num_classes)
         self.nfc = nn.Linear(8192,num_classes)
+        if not pretrained:
+            self.apply(_weights_init)
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)

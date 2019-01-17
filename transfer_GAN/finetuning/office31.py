@@ -18,7 +18,7 @@ from tqdm import tqdm
 import numpy as np
 from torch.nn import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CUDA = True if torch.cuda.is_available() else False
@@ -85,7 +85,7 @@ def load_model(name='alexnet'):
         # torch.nn.init.xavier_uniform_(model.nfc.weight)
         # torch.nn.init.constant_(model.nfc.bias, 0.1)
     elif name == 'resnet':
-        model = resnet.myresnet(pretrained=True, num_classes=31)
+        model = resnet.myresnet(pretrained=False, num_classes=31)
         # torch.nn.init.xavier_uniform_(model.nfc.weight.data)
         # torch.nn.init.constant_(model.nfc.bias.data, 0.01)
     elif name == 'densenet':
@@ -122,8 +122,8 @@ if __name__ == '__main__':
     root_dir = '../../../../data/Original_images/'
     src, tar = 'amazon/images', 'webcam/images'
     #model_name = 'alexnet'
-    # model_name = 'resnet'
-    model_name = 'densenet'
+    model_name = 'resnet'
+    #model_name = 'densenet'
     data_src, data_tar = data_loader.load_training(root_dir, src, BATCH_SIZE_SRC), \
                          data_loader.load_testing(root_dir, tar, BATCH_SIZE_TAR)
     print('Source:{}, target:{}'.format(src, tar))
